@@ -73,6 +73,14 @@ struct RealTimer : Immovable
 	}
 } realTimer;
 
+std::uint64_t convert(const FILETIME &ft)
+{
+	LARGE_INTEGER li = {};
+	li.HighPart = ft.dwHighDateTime;
+	li.LowPart = ft.dwLowDateTime;
+	return li.QuadPart;
+}
+
 DWORD run(const int argc, const char *args[])
 {
 	if (argc < 2)
@@ -105,6 +113,17 @@ DWORD run(const int argc, const char *args[])
 		throw std::runtime_error("WaitForSingleObject failed");
 
 	realTimer.stop();
+
+	{
+		FILETIME c, e, k, u;
+		if (GetProcessTimes(procInfo.hProcess, &c, &e, &k, &u) == 0)
+		{
+			printf("Error code: %d\n", GetLastError());
+			throw std::runtime_error("GetProcessTimes failed");
+		}
+		printf("User time (seconds): %lld\n", convert(u) / 10000000);
+		printf("System time (seconds): %lld\n", convert(k) / 10000000);
+	}
 
 	{
 		const std::uint64_t duration = realTimer.duration();
