@@ -105,7 +105,9 @@ void run(const int argc, const char *args[])
 		throw std::runtime_error("No program name.");
 
 	const char *cmd = GetCommandLine();
-	cmd = strchr(cmd + strlen(args[0]), ' ') + 1; // skip the wintime executable path
+	cmd = strchr(cmd + strlen(args[0]), ' '); // skip the wintime executable path
+	while (*cmd == ' ')
+		cmd++;
 	printf("Command: %s\n", cmd);
 
 	STARTUPINFO startupInfo;

@@ -13,12 +13,6 @@ jobs:
         build-arch: [Win32, x64]
 
     steps:
-    - name: Versions
-      shell: bash
-      run: |
-        cmake --version
-        git --version
-
     - uses: actions/checkout@v1
 
     - name: Configure
@@ -34,9 +28,19 @@ jobs:
         cd build
         cmake --build . --config ${{ matrix.build-config }}
 
-    - name: Run
+    - name: Run (bash)
       shell: bash
       run: |
         cd build/result/${{ matrix.build-config }}
-        ./wintime cmd /C echo "hello"
+        echo './wintime echo hello'
+        ./wintime echo hello
+        echo './wintime bash -c "sleep 5"'
+        ./wintime bash -c "sleep 5"
+
+    - name: Run (cmd)
+      shell: cmd
+      run: |
+        cd build/result/${{ matrix.build-config }}
+        echo 'wintime.exe cmd /C echo "hello"'
+        wintime.exe cmd /C echo "hello"
 
