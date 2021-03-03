@@ -11,6 +11,10 @@ if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
 	message(FATAL_ERROR "CMAKE_BUILD_TYPE needs to be set")
 endif()
 
+if(NOT CMAKE_SIZEOF_VOID_P EQUAL 8)
+	message(FATAL_ERROR "64 bit configuration required")
+endif()
+
 foreach(conf IN ITEMS ${CMAKE_CONFIGURATION_TYPES} ${CMAKE_BUILD_TYPE})
 	string(TOUPPER ${conf} conf_upper)
 	string(TOLOWER ${conf} conf_lower)

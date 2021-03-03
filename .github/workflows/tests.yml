@@ -10,7 +10,7 @@ jobs:
       matrix:
         os-version: [2019]
         build-config: [debug, release]
-        build-arch: [Win32, x64]
+        build-arch: [x64]
 
     steps:
     - uses: actions/checkout@v1
