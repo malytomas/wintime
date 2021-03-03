@@ -1,0 +1,42 @@
+name: Tests
+on: [push, pull_request]
+
+jobs:
+  Windows:
+    name: windows-${{ matrix.os-version }}-${{ matrix.build-config }}-${{ matrix.build-arch }}
+    runs-on: windows-${{ matrix.os-version }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os-version: [2019]
+        build-config: [debug, release]
+        build-arch: [Win32, x64]
+
+    steps:
+    - name: Versions
+      shell: bash
+      run: |
+        cmake --version
+        git --version
+
+    - uses: actions/checkout@v1
+
+    - name: Configure
+      shell: bash
+      run: |
+        mkdir build
+        cd build
+        cmake -A${{ matrix.build-arch }} -DCMAKE_BUILD_TYPE=${{ matrix.build-config }} ..
+
+    - name: Build
+      shell: bash
+      run: |
+        cd build
+        cmake --build . --config ${{ matrix.build-config }}
+
+    - name: Tests
+      shell: bash
+      run: |
+        cd build/result/${{ matrix.build-config }}
+        ./wintime echo "hello"
+
