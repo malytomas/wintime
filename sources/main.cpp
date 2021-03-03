@@ -86,13 +86,14 @@ void printStats(HANDLE handle)
 
 	{
 		const std::uint64_t duration = realTimer.duration();
-		printf("Duration (wall time): %lld us\n", duration);
+		printf("Wall time (microseconds): %lld\n", duration);
 		std::uint64_t sec = duration / 1000000;
 		std::uint64_t min = sec / 60;
 		std::uint64_t hrs = min / 60;
+		printf("Wall time (seconds): %lld\n", sec);
 		sec %= 60;
 		min %= 60;
-		printf("Duration (wall time): %lld:%02lld:%02lld\n", hrs, min, sec);
+		printf("Wall time (H:MM:SS): %lld:%02lld:%02lld\n", hrs, min, sec);
 	}
 
 	// todo
@@ -100,16 +101,12 @@ void printStats(HANDLE handle)
 
 void run(const int argc, const char *args[])
 {
-	if (argc == 0)
+	if (argc < 2)
 		throw std::runtime_error("No program name.");
 
-	std::string cmd = args[0];
-	for (int i = 1; i < argc; i++)
-	{
-		cmd += " ";
-		cmd += args[i];
-	}
-	printf("Command: %s\n", cmd.c_str());
+	const char *cmd = GetCommandLine();
+	cmd = strchr(cmd + strlen(args[0]), ' ') + 1; // skip the wintime executable path
+	printf("Command: %s\n", cmd);
 
 	STARTUPINFO startupInfo;
 	memset(&startupInfo, 0, sizeof(startupInfo));
@@ -120,7 +117,7 @@ void run(const int argc, const char *args[])
 
 	realTimer.start();
 
-	if (!CreateProcess(nullptr, (char *)cmd.c_str(), nullptr, nullptr, TRUE, 0, nullptr, nullptr, &startupInfo, &procInfo))
+	if (!CreateProcess(nullptr, (char *)cmd, nullptr, nullptr, TRUE, 0, nullptr, nullptr, &startupInfo, &procInfo))
 	{
 		printf("Error code: %d\n", GetLastError());
 		throw std::runtime_error("CreateProcess failed");
@@ -143,7 +140,7 @@ int main(const int argc, const char *args[])
 {
 	try
 	{
-		run(argc - 1, args + 1);
+		run(argc, args);
 		return 0;
 	}
 	catch (const std::exception &e)
