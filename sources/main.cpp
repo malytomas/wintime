@@ -2,6 +2,7 @@
 #define VC_EXTRALEAN
 #define NOMINMAX
 #include <windows.h>
+#include <psapi.h>
 
 #include <cstdlib>
 #include <cstdio>
@@ -75,16 +76,6 @@ struct RealTimer
 void printStats(HANDLE handle)
 {
 	{
-		DWORD code = 0;
-		if (GetExitCodeProcess(handle, &code) == 0)
-		{
-			printf("Error code: %d\n", GetLastError());
-			throw std::runtime_error("GetExitCodeProcess failed");
-		}
-		printf("Process exit code: %d\n", code);
-	}
-
-	{
 		const std::uint64_t duration = realTimer.duration();
 		printf("Wall time (microseconds): %lld\n", duration);
 		std::uint64_t sec = duration / 1000000;
@@ -96,7 +87,29 @@ void printStats(HANDLE handle)
 		printf("Wall time (H:MM:SS): %lld:%02lld:%02lld\n", hrs, min, sec);
 	}
 
-	// todo
+	{
+		PROCESS_MEMORY_COUNTERS_EX pmc = {};
+		if (GetProcessMemoryInfo(handle, (PROCESS_MEMORY_COUNTERS *)&pmc, sizeof(pmc)) == 0)
+		{
+			printf("Error code: %d\n", GetLastError());
+			throw std::runtime_error("GetProcessMemoryInfo failed");
+		}
+
+		printf("Peak working set (kbytes): %lld\n", pmc.PeakWorkingSetSize / 1000);
+		printf("Peak page file usage (kbytes): %lld\n", pmc.PeakPagefileUsage / 1000);
+		printf("Private usage (kbytes): %lld\n", pmc.PrivateUsage / 1000);
+		printf("Page faults count: %d\n", pmc.PageFaultCount);
+	}
+
+	{
+		DWORD code = 0;
+		if (GetExitCodeProcess(handle, &code) == 0)
+		{
+			printf("Error code: %d\n", GetLastError());
+			throw std::runtime_error("GetExitCodeProcess failed");
+		}
+		printf("Process exit code: %d\n", code);
+	}
 }
 
 void run(const int argc, const char *args[])
@@ -110,12 +123,9 @@ void run(const int argc, const char *args[])
 		cmd++;
 	printf("Command: %s\n", cmd);
 
-	STARTUPINFO startupInfo;
-	memset(&startupInfo, 0, sizeof(startupInfo));
+	STARTUPINFO startupInfo = {};
 	startupInfo.cb = sizeof(startupInfo);
-
-	PROCESS_INFORMATION procInfo;
-	memset(&procInfo, 0, sizeof(procInfo));
+	PROCESS_INFORMATION procInfo = {};
 
 	realTimer.start();
 
