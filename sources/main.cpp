@@ -39,7 +39,7 @@ struct AutoHandle : Immovable
 	}
 };
 
-struct RealTimer
+struct RealTimer : Immovable
 {
 	LARGE_INTEGER begin = {}, end = {};
 
@@ -73,52 +73,13 @@ struct RealTimer
 	}
 } realTimer;
 
-void printStats(HANDLE handle)
-{
-	{
-		const std::uint64_t duration = realTimer.duration();
-		printf("Wall time (microseconds): %lld\n", duration);
-		std::uint64_t sec = duration / 1000000;
-		std::uint64_t min = sec / 60;
-		std::uint64_t hrs = min / 60;
-		printf("Wall time (seconds): %lld\n", sec);
-		sec %= 60;
-		min %= 60;
-		printf("Wall time (H:MM:SS): %lld:%02lld:%02lld\n", hrs, min, sec);
-	}
-
-	{
-		PROCESS_MEMORY_COUNTERS_EX pmc = {};
-		if (GetProcessMemoryInfo(handle, (PROCESS_MEMORY_COUNTERS *)&pmc, sizeof(pmc)) == 0)
-		{
-			printf("Error code: %d\n", GetLastError());
-			throw std::runtime_error("GetProcessMemoryInfo failed");
-		}
-
-		printf("Peak working set (kbytes): %lld\n", pmc.PeakWorkingSetSize / 1000);
-		printf("Peak page file usage (kbytes): %lld\n", pmc.PeakPagefileUsage / 1000);
-		printf("Private usage (kbytes): %lld\n", pmc.PrivateUsage / 1000);
-		printf("Page faults count: %d\n", pmc.PageFaultCount);
-	}
-
-	{
-		DWORD code = 0;
-		if (GetExitCodeProcess(handle, &code) == 0)
-		{
-			printf("Error code: %d\n", GetLastError());
-			throw std::runtime_error("GetExitCodeProcess failed");
-		}
-		printf("Process exit code: %d\n", code);
-	}
-}
-
-void run(const int argc, const char *args[])
+DWORD run(const int argc, const char *args[])
 {
 	if (argc < 2)
 		throw std::runtime_error("No program name.");
 
 	const char *cmd = GetCommandLine();
-	cmd = strchr(cmd + strlen(args[0]), ' '); // skip the wintime executable path
+	cmd = strchr(cmd + strlen(args[0]), ' '); // skip own executable path
 	while (*cmd == ' ')
 		cmd++;
 	printf("Command: %s\n", cmd);
@@ -145,15 +106,49 @@ void run(const int argc, const char *args[])
 
 	realTimer.stop();
 
-	printStats(procInfo.hProcess);
+	{
+		const std::uint64_t duration = realTimer.duration();
+		printf("Wall time (microseconds): %lld\n", duration);
+		std::uint64_t sec = duration / 1000000;
+		std::uint64_t min = sec / 60;
+		std::uint64_t hrs = min / 60;
+		printf("Wall time (seconds): %lld\n", sec);
+		sec %= 60;
+		min %= 60;
+		printf("Wall time (H:MM:SS): %lld:%02lld:%02lld\n", hrs, min, sec);
+	}
+
+	{
+		PROCESS_MEMORY_COUNTERS_EX pmc = {};
+		if (GetProcessMemoryInfo(procInfo.hProcess, (PROCESS_MEMORY_COUNTERS *)&pmc, sizeof(pmc)) == 0)
+		{
+			printf("Error code: %d\n", GetLastError());
+			throw std::runtime_error("GetProcessMemoryInfo failed");
+		}
+
+		printf("Peak working set (kbytes): %lld\n", pmc.PeakWorkingSetSize / 1000);
+		printf("Peak page file usage (kbytes): %lld\n", pmc.PeakPagefileUsage / 1000);
+		printf("Private usage (kbytes): %lld\n", pmc.PrivateUsage / 1000);
+		printf("Page faults count: %d\n", pmc.PageFaultCount);
+	}
+
+	{
+		DWORD code = 0;
+		if (GetExitCodeProcess(procInfo.hProcess, &code) == 0)
+		{
+			printf("Error code: %d\n", GetLastError());
+			throw std::runtime_error("GetExitCodeProcess failed");
+		}
+		printf("Process exit code: %d\n", code);
+		return code;
+	}
 }
 
 int main(const int argc, const char *args[])
 {
 	try
 	{
-		run(argc, args);
-		return 0;
+		return run(argc, args);
 	}
 	catch (const std::exception &e)
 	{
