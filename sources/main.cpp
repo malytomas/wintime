@@ -38,6 +38,40 @@ struct AutoHandle : Immovable
 	}
 };
 
+struct RealTimer
+{
+	LARGE_INTEGER begin = {}, end = {};
+
+	void start()
+	{
+		if (QueryPerformanceCounter(&begin) == 0)
+		{
+			printf("Error code: %d\n", GetLastError());
+			throw std::runtime_error("QueryPerformanceCounter failed");
+		}
+	}
+
+	void stop()
+	{
+		if (QueryPerformanceCounter(&end) == 0)
+		{
+			printf("Error code: %d\n", GetLastError());
+			throw std::runtime_error("QueryPerformanceCounter failed");
+		}
+	}
+
+	std::uint64_t duration() const
+	{
+		LARGE_INTEGER freq = {};
+		if (QueryPerformanceFrequency(&freq) == 0)
+		{
+			printf("Error code: %d\n", GetLastError());
+			throw std::runtime_error("QueryPerformanceFrequency failed");
+		}
+		return std::uint64_t(1000000) * (end.QuadPart - begin.QuadPart) / freq.QuadPart;
+	}
+} realTimer;
+
 void printStats(HANDLE handle)
 {
 	{
@@ -48,6 +82,17 @@ void printStats(HANDLE handle)
 			throw std::runtime_error("GetExitCodeProcess failed");
 		}
 		printf("Process exit code: %d\n", code);
+	}
+
+	{
+		const std::uint64_t duration = realTimer.duration();
+		printf("Duration (wall time): %lld us\n", duration);
+		std::uint64_t sec = duration / 1000000;
+		std::uint64_t min = sec / 60;
+		std::uint64_t hrs = min / 60;
+		sec %= 60;
+		min %= 60;
+		printf("Duration (wall time): %lld:%02lld:%02lld\n", hrs, min, sec);
 	}
 
 	// todo
@@ -64,6 +109,7 @@ void run(const int argc, const char *args[])
 		cmd += " ";
 		cmd += args[i];
 	}
+	printf("Command: %s\n", cmd.c_str());
 
 	STARTUPINFO startupInfo;
 	memset(&startupInfo, 0, sizeof(startupInfo));
@@ -71,6 +117,8 @@ void run(const int argc, const char *args[])
 
 	PROCESS_INFORMATION procInfo;
 	memset(&procInfo, 0, sizeof(procInfo));
+
+	realTimer.start();
 
 	if (!CreateProcess(nullptr, (char *)cmd.c_str(), nullptr, nullptr, TRUE, 0, nullptr, nullptr, &startupInfo, &procInfo))
 	{
@@ -85,6 +133,8 @@ void run(const int argc, const char *args[])
 
 	if (WaitForSingleObject(procInfo.hProcess, INFINITE) != WAIT_OBJECT_0)
 		throw std::runtime_error("WaitForSingleObject failed");
+
+	realTimer.stop();
 
 	printStats(procInfo.hProcess);
 }
