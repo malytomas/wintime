@@ -7,6 +7,7 @@
 #include <cstdlib>
 #include <cstdio>
 #include <cerrno>
+#include <cctype>
 
 #include <stdexcept>
 #include <string>
@@ -88,9 +89,10 @@ DWORD run(const int argc, const char *args[])
 
 	const char *cmd = GetCommandLine();
 	cmd = strchr(cmd + strlen(args[0]), ' '); // skip own executable path
-	while (*cmd == ' ')
+	while (isspace(*cmd))
 		cmd++;
 	printf("Command: %s\n", cmd);
+	fflush(stdout);
 
 	STARTUPINFO startupInfo = {};
 	startupInfo.cb = sizeof(startupInfo);
@@ -123,6 +125,7 @@ DWORD run(const int argc, const char *args[])
 		}
 		printf("User time (seconds): %lld\n", convert(u) / 10000000);
 		printf("System time (seconds): %lld\n", convert(k) / 10000000);
+		fflush(stdout);
 	}
 
 	{
@@ -135,6 +138,7 @@ DWORD run(const int argc, const char *args[])
 		sec %= 60;
 		min %= 60;
 		printf("Wall time (H:MM:SS): %lld:%02lld:%02lld\n", hrs, min, sec);
+		fflush(stdout);
 	}
 
 	{
@@ -149,6 +153,7 @@ DWORD run(const int argc, const char *args[])
 		printf("Peak page file usage (kbytes): %lld\n", pmc.PeakPagefileUsage / 1000);
 		printf("Private usage (kbytes): %lld\n", pmc.PrivateUsage / 1000);
 		printf("Page faults count: %d\n", pmc.PageFaultCount);
+		fflush(stdout);
 	}
 
 	{
@@ -159,6 +164,7 @@ DWORD run(const int argc, const char *args[])
 			throw std::runtime_error("GetExitCodeProcess failed");
 		}
 		printf("Process exit code: %d\n", code);
+		fflush(stdout);
 		return code;
 	}
 }
