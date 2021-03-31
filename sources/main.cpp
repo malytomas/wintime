@@ -40,46 +40,12 @@ struct AutoHandle : Immovable
 	}
 };
 
-struct RealTimer : Immovable
-{
-	LARGE_INTEGER begin = {}, end = {};
-
-	void start()
-	{
-		if (QueryPerformanceCounter(&begin) == 0)
-		{
-			printf("Error code: %d\n", GetLastError());
-			throw std::runtime_error("QueryPerformanceCounter failed");
-		}
-	}
-
-	void stop()
-	{
-		if (QueryPerformanceCounter(&end) == 0)
-		{
-			printf("Error code: %d\n", GetLastError());
-			throw std::runtime_error("QueryPerformanceCounter failed");
-		}
-	}
-
-	std::uint64_t duration() const
-	{
-		LARGE_INTEGER freq = {};
-		if (QueryPerformanceFrequency(&freq) == 0)
-		{
-			printf("Error code: %d\n", GetLastError());
-			throw std::runtime_error("QueryPerformanceFrequency failed");
-		}
-		return std::uint64_t(1000000) * (end.QuadPart - begin.QuadPart) / freq.QuadPart;
-	}
-} realTimer;
-
 std::uint64_t convert(const FILETIME &ft)
 {
 	LARGE_INTEGER li = {};
 	li.HighPart = ft.dwHighDateTime;
 	li.LowPart = ft.dwLowDateTime;
-	return li.QuadPart;
+	return li.QuadPart / 10;
 }
 
 DWORD run(const int argc, const char *args[])
@@ -92,13 +58,12 @@ DWORD run(const int argc, const char *args[])
 	while (isspace(*cmd))
 		cmd++;
 	printf("Command: %s\n", cmd);
+	//printf("-----------------------------------------\n");
 	fflush(stdout);
 
 	STARTUPINFO startupInfo = {};
 	startupInfo.cb = sizeof(startupInfo);
 	PROCESS_INFORMATION procInfo = {};
-
-	realTimer.start();
 
 	if (!CreateProcess(nullptr, (char *)cmd, nullptr, nullptr, TRUE, 0, nullptr, nullptr, &startupInfo, &procInfo))
 	{
@@ -114,8 +79,6 @@ DWORD run(const int argc, const char *args[])
 	if (WaitForSingleObject(procInfo.hProcess, INFINITE) != WAIT_OBJECT_0)
 		throw std::runtime_error("WaitForSingleObject failed");
 
-	realTimer.stop();
-
 	{
 		FILETIME c, e, k, u;
 		if (GetProcessTimes(procInfo.hProcess, &c, &e, &k, &u) == 0)
@@ -123,20 +86,17 @@ DWORD run(const int argc, const char *args[])
 			printf("Error code: %d\n", GetLastError());
 			throw std::runtime_error("GetProcessTimes failed");
 		}
-		printf("User time (seconds): %lld\n", convert(u) / 10000000);
-		printf("System time (seconds): %lld\n", convert(k) / 10000000);
-		fflush(stdout);
-	}
-
-	{
-		const std::uint64_t duration = realTimer.duration();
+		const std::uint64_t duration = convert(e) - convert(c);
+		const std::uint64_t hrs = duration / 1000000 / 60 / 60;
+		const std::uint64_t min = (duration / 1000000 / 60) % 60;
+		const std::uint64_t sec = (duration / 1000000) % 60;
+		//printf("-----------------------------------------\n");
+		printf("User time (microseconds): %lld\n", convert(u));
+		printf("User time (seconds): %lld\n", convert(u) / 1000000);
+		printf("System time (microseconds): %lld\n", convert(k));
+		printf("System time (seconds): %lld\n", convert(k) / 1000000);
 		printf("Wall time (microseconds): %lld\n", duration);
-		std::uint64_t sec = duration / 1000000;
-		std::uint64_t min = sec / 60;
-		std::uint64_t hrs = min / 60;
-		printf("Wall time (seconds): %lld\n", sec);
-		sec %= 60;
-		min %= 60;
+		printf("Wall time (seconds): %lld\n", duration / 1000000);
 		printf("Wall time (H:MM:SS): %lld:%02lld:%02lld\n", hrs, min, sec);
 		fflush(stdout);
 	}
@@ -149,10 +109,14 @@ DWORD run(const int argc, const char *args[])
 			throw std::runtime_error("GetProcessMemoryInfo failed");
 		}
 
-		printf("Peak working set (kbytes): %lld\n", pmc.PeakWorkingSetSize / 1000);
+		//printf("-----------------------------------------\n");
+		printf("Peak working set size (kbytes): %lld\n", pmc.PeakWorkingSetSize / 1000);
 		printf("Peak page file usage (kbytes): %lld\n", pmc.PeakPagefileUsage / 1000);
+		printf("Page file usage (kbytes): %lld\n", pmc.PagefileUsage / 1000);
 		printf("Private usage (kbytes): %lld\n", pmc.PrivateUsage / 1000);
-		printf("Page faults count: %d\n", pmc.PageFaultCount);
+		printf("Quota peak paged pool (kbytes): %lld\n", pmc.QuotaPeakPagedPoolUsage / 1000);
+		printf("Quota peak nonpaged pool (kbytes): %lld\n", pmc.QuotaPeakNonPagedPoolUsage / 1000);
+		printf("Page fault count: %d\n", pmc.PageFaultCount);
 		fflush(stdout);
 	}
 
@@ -163,6 +127,7 @@ DWORD run(const int argc, const char *args[])
 			printf("Error code: %d\n", GetLastError());
 			throw std::runtime_error("GetExitCodeProcess failed");
 		}
+		//printf("-----------------------------------------\n");
 		printf("Process exit code: %d\n", code);
 		fflush(stdout);
 		return code;
